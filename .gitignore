@@ -1,0 +1,30 @@
+# Binaries
+bin/
+envpull
+*.exe
+
+# Test artifacts
+*.test
+*.out
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# envpull specific
+.envpull.cache
+.env
+.env.*
+!.env.example
+!.envpull.yml.example
+
+# Go
+vendor/
