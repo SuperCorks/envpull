@@ -1,7 +1,10 @@
 {
-  "name": "envpull",
+  "name": "@supercorks/envpull",
   "version": "1.0.0",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "envpull": "./bin/envpull.js"
   },

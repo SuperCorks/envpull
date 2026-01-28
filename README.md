@@ -129,6 +129,51 @@ envpull rollback <generation> simon --env develop
 
 After rolling back, run `envpull pull` to update your local file.
 
+### Who Am I
+
+Check your current authentication and configuration:
+
+```bash
+envpull whoami
+```
+
+Shows your Google account, GCP project, and envpull configuration.
+
+### List Environments
+
+List all environments available for a project:
+
+```bash
+# List all envs
+envpull list
+
+# List from specific source
+envpull list team
+```
+
+### Diff
+
+Compare your local `.env` with the remote version:
+
+```bash
+# Basic diff (values masked)
+envpull diff
+
+# Show actual values
+envpull diff --show-values
+
+# Compare specific env
+envpull diff --env prod --file .env.prod
+```
+
+### Sources
+
+List all configured sources:
+
+```bash
+envpull sources
+```
+
 ### Version
 
 ```bash
@@ -142,6 +187,9 @@ envpull --version
 This file defines your sources. Commit it to your repo so team members can pull envs.
 
 ```yaml
+# Optional: specify GCP project (defaults to gcloud config)
+project: my-gcp-project
+
 sources:
   simon:
     bucket: gs://simon-envs

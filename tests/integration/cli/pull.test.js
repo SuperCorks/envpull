@@ -20,16 +20,31 @@ vi.mock('fs/promises', () => ({
 // Mock GCS Client
 vi.mock('../../../src/lib/gcs.js', () => {
     return {
-        GCSClient: vi.fn()
+        GCSClient: vi.fn(),
+        GCSError: class GCSError extends Error {
+          constructor(message, hint) {
+            super(message);
+            this.hint = hint;
+          }
+        }
     }
 });
 
-// Mock UI
+// Mock UI with all helper functions
 vi.mock('../../../src/lib/ui.js', () => ({
     ui: {
         spinner: vi.fn(),
-        success: vi.fn(),
-        warn: vi.fn()
+        success: vi.fn(t => t),
+        warn: vi.fn(t => t),
+        error: vi.fn(t => t),
+        info: vi.fn(t => t),
+        dim: vi.fn(t => t),
+        bold: vi.fn(t => t),
+        hint: vi.fn(t => t),
+        cmd: vi.fn(t => t),
+        path: vi.fn(t => t),
+        list: vi.fn(items => items.join('\n')),
+        kv: vi.fn((k, v) => `${k}: ${v}`)
     }
 }));
 
@@ -47,6 +62,7 @@ describe('cli/commands/pull', () => {
         start: vi.fn().mockReturnThis(),
         succeed: vi.fn(),
         fail: vi.fn(),
+        stop: vi.fn(),
         text: ''
     };
     
@@ -74,7 +90,7 @@ describe('cli/commands/pull', () => {
 
     await runCommand([]);
 
-    expect(spinnerMockObject.fail).toHaveBeenCalledWith('Config not found');
+    expect(spinnerMockObject.fail).toHaveBeenCalledWith('No configuration found');
   });
 
   it('should fail if sources mapping is empty', async () => {

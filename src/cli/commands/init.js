@@ -1,16 +1,32 @@
-import { input } from '@inquirer/prompts';
+import { input, confirm } from '@inquirer/prompts';
 import { saveConfig } from '../../config/index.js';
 import { ui } from '../../lib/ui.js';
+import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+
+/**
+ * Try to get current GCP project from gcloud config
+ */
+function getCurrentProject() {
+  try {
+    const result = execSync('gcloud config get-value project 2>/dev/null', {
+      encoding: 'utf8',
+      timeout: 5000
+    }).trim();
+    return result && result !== '(unset)' ? result : null;
+  } catch {
+    return null;
+  }
+}
 
 export function register(program) {
   program
     .command('init')
-    .description('Initialize envpull in the current directory')
+    .description('Set up a new .envpull.yaml config')
     .action(async () => {
       try {
-        ui.spinner('Initializing envpull...').start().stop();
+        console.log(ui.bold('\n🔧 Setting up envpull\n'));
 
         const sourceName = await input({ 
           message: 'Source name (alias for this bucket):', 
@@ -19,7 +35,21 @@ export function register(program) {
 
         const bucket = await input({ 
           message: 'GCS Bucket name:',
-          validate: (value) => value ? true : 'Bucket name is required'
+          validate: (value) => {
+            if (!value) return 'Bucket name is required';
+            if (!/^[a-z0-9][a-z0-9-_.]{1,61}[a-z0-9]$/.test(value.replace(/^gs:\/\//, ''))) {
+              return 'Invalid bucket name (3-63 chars, lowercase, numbers, hyphens, dots)';
+            }
+            return true;
+          }
+        });
+
+        // Get current project as default
+        const currentProject = getCurrentProject();
+        
+        const gcpProject = await input({ 
+          message: 'GCP Project ID (optional, press Enter to skip):',
+          default: currentProject || ''
         });
 
         const config = {
@@ -30,27 +60,40 @@ export function register(program) {
           }
         };
 
+        // Only add project if specified
+        if (gcpProject && gcpProject.trim()) {
+          config.project = gcpProject.trim();
+        }
+
         const configPath = path.join(process.cwd(), '.envpull.yaml');
         
         // check if exists
         if (fs.existsSync(configPath)) {
-            const overwrite = await input({ 
-                message: 'Config file already exists. Overwrite? (y/n)',
-                validate: (v) => ['y', 'n'].includes(v.toLowerCase()) ? true : 'Please enter y or n' 
+            const overwrite = await confirm({ 
+                message: 'Config file already exists. Overwrite?',
+                default: false
             });
-            if (overwrite.toLowerCase() !== 'y') {
-                console.log(ui.info('Aborted.'));
+            if (!overwrite) {
+                console.log(ui.dim('\nAborted.'));
                 return;
             }
         }
 
         await saveConfig(configPath, config);
         
-        console.log(ui.success(`\nConfiguration saved to ${configPath}`));
-        console.log(ui.info(`\nYou can now run 'envpull push' or 'envpull pull'`));
+        console.log(ui.success(`\n✅ Created ${ui.path('.envpull.yaml')}\n`));
+        console.log(ui.dim('Next steps:'));
+        console.log(`  1. Authenticate: ${ui.cmd('gcloud auth application-default login')}`);
+        console.log(`  2. Push your .env: ${ui.cmd('envpull push')}`);
+        console.log(`  3. On other machines: ${ui.cmd('envpull pull')}\n`);
 
       } catch (error) {
-        console.error(ui.error(error.message));
+        if (error.name === 'ExitPromptError') {
+          // User pressed Ctrl+C
+          console.log(ui.dim('\nAborted.'));
+          return;
+        }
+        console.error(ui.error(`\n❌ ${error.message}`));
         process.exit(1);
       }
     });

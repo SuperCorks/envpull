@@ -63,5 +63,51 @@ export const ui = {
    */
   dim(text) {
     return chalk.gray(text);
+  },
+
+  /**
+   * Formats a hint/tip message
+   * @param {string} text 
+   * @returns {string}
+   */
+  hint(text) {
+    return chalk.dim(`💡 ${text}`);
+  },
+
+  /**
+   * Formats a command suggestion
+   * @param {string} cmd 
+   * @returns {string}
+   */
+  cmd(cmd) {
+    return chalk.cyan.bold(cmd);
+  },
+
+  /**
+   * Formats a file path
+   * @param {string} filePath 
+   * @returns {string}
+   */
+  path(filePath) {
+    return chalk.underline(filePath);
+  },
+
+  /**
+   * Formats a list of available options
+   * @param {string[]} items 
+   * @returns {string}
+   */
+  list(items) {
+    return items.map(item => chalk.cyan(`  • ${item}`)).join('\n');
+  },
+
+  /**
+   * Formats a key-value pair
+   * @param {string} key 
+   * @param {string} value 
+   * @returns {string}
+   */
+  kv(key, value) {
+    return `${chalk.dim(key + ':')} ${value}`;
   }
 };
