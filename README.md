@@ -53,8 +53,8 @@ That's it. Your `.env` is now synced via GCS.
 ### Grant Access to a Teammate
 
 ```bash
-envpull grant teammate@company.com       # Full read/write access
-envpull grant teammate@company.com --read-only   # Read-only access
+envpull grant teammate@company.com              # Read-only access (default)
+envpull grant teammate@company.com --read-write # Full read/write access
 ```
 
 They'll be able to `envpull pull` immediately after.

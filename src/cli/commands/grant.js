@@ -47,7 +47,7 @@ export function register(program) {
     .description('Grant bucket access to a team member by email')
     .argument('<email>', 'Email address of the user to grant access')
     .argument('[source]', 'Source name from config')
-    .option('--read-only', 'Grant read-only access (viewer) instead of full access')
+    .option('--read-write', 'Grant read-write access (admin) instead of read-only')
     .option('-y, --yes', 'Skip confirmation prompt')
     .action(async (email, sourceName, options) => {
       const spinner = ui.spinner('Loading config...').start();
@@ -72,8 +72,8 @@ export function register(program) {
         const source = resolveSource(config, sourceName);
         const client = new GCSClient(config.project);
         const bucketName = client.normalizeBucketName(source.bucket);
-        const role = options.readOnly ? 'roles/storage.objectViewer' : 'roles/storage.objectAdmin';
-        const roleLabel = options.readOnly ? 'Storage Object Viewer (read-only)' : 'Storage Object Admin (read/write)';
+        const role = options.readWrite ? 'roles/storage.objectAdmin' : 'roles/storage.objectViewer';
+        const roleLabel = options.readWrite ? 'Storage Object Admin (read/write)' : 'Storage Object Viewer (read-only)';
 
         spinner.stop();
 
@@ -86,7 +86,7 @@ export function register(program) {
           console.log();
 
           const confirmed = await confirm({
-            message: `Grant ${options.readOnly ? 'read-only' : 'full'} access to ${email}?`,
+            message: `Grant ${options.readWrite ? 'read-write' : 'read-only'} access to ${email}?`,
             default: true
           });
 
@@ -101,7 +101,7 @@ export function register(program) {
 
         await client.grantAccess(bucketName, email, role);
 
-        spinner.succeed(`Granted ${options.readOnly ? 'read-only' : 'full'} access to ${ui.bold(email)}`);
+        spinner.succeed(`Granted ${options.readWrite ? 'read-write' : 'read-only'} access to ${ui.bold(email)}`);
         console.log(ui.hint(`They can now run: envpull pull`));
 
       } catch (error) {
