@@ -40,6 +40,7 @@ That's it. Your `.env` is now synced via GCS.
 | `envpull list` | Show all available environments |
 | `envpull history` | View version history |
 | `envpull rollback <id>` | Restore a previous version |
+| `envpull grant <email>` | Grant bucket access to a teammate |
 | `envpull sources` | List configured sources |
 | `envpull whoami` | Check your auth & config |
 
@@ -48,6 +49,15 @@ That's it. Your `.env` is now synced via GCS.
 ---
 
 ## Common Workflows
+
+### Grant Access to a Teammate
+
+```bash
+envpull grant teammate@company.com       # Full read/write access
+envpull grant teammate@company.com --read-only   # Read-only access
+```
+
+They'll be able to `envpull pull` immediately after.
 
 ### New Team Member Setup
 

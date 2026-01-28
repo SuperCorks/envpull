@@ -327,4 +327,42 @@ export class GCSClient {
       throw wrapError(err, `${bucketName}/${objectPath}`);
     }
   }
+
+  /**
+   * Grants IAM access to a bucket for a user
+   * @param {string} bucketName 
+   * @param {string} email - User's email address
+   * @param {string} role - IAM role (e.g., 'roles/storage.objectViewer' or 'roles/storage.objectAdmin')
+   */
+  async grantAccess(bucketName, email, role) {
+    bucketName = this.normalizeBucketName(bucketName);
+    const bucket = this.storage.bucket(bucketName);
+    
+    try {
+      // Get current IAM policy
+      const [policy] = await bucket.iam.getPolicy({ requestedPolicyVersion: 3 });
+      
+      // Find or create the binding for this role
+      const member = `user:${email}`;
+      let binding = policy.bindings.find(b => b.role === role);
+      
+      if (binding) {
+        // Add member if not already present
+        if (!binding.members.includes(member)) {
+          binding.members.push(member);
+        }
+      } else {
+        // Create new binding
+        policy.bindings.push({
+          role,
+          members: [member]
+        });
+      }
+      
+      // Set the updated policy
+      await bucket.iam.setPolicy(policy);
+    } catch (err) {
+      throw wrapError(err, bucketName);
+    }
+  }
 }

@@ -14,6 +14,7 @@ import * as whoamiCmd from './commands/whoami.js';
 import * as listCmd from './commands/list.js';
 import * as sourcesCmd from './commands/sources.js';
 import * as diffCmd from './commands/diff.js';
+import * as grantCmd from './commands/grant.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,6 +77,9 @@ ${chalk.bold('MORE')}
   // Version control
   historyCmd.register(program);
   rollbackCmd.register(program);
+  
+  // Access management
+  grantCmd.register(program);
   
   // Info
   whoamiCmd.register(program);
