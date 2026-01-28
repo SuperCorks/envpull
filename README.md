@@ -1,270 +1,215 @@
 # envpull
 
-A CLI tool for sharing and syncing `.env` files via Google Cloud Storage (GCS) buckets.
-
-## Overview
-
-envpull makes it easy to share environment variables across team members and environments. Instead of copying `.env` files through insecure channels (Slack, email), store them securely in GCS buckets with proper access controls.
-
-**Key features:**
-- Config-based: Each repo has `.envpull.yaml` defining named sources
-- Multiple sources: Different team members can have their own buckets
-- Environment support: Manage `default`, `develop`, `prod`, etc.
-- Git-aware: Auto-detects project name from git remote
-- Version history: Rollback to previous versions of your environment files
-
-## Prerequisites
-
-- **Node.js**: Version 18 or higher.
-- **gcloud CLI**: Required for Authentication (ADC). [Install gcloud](https://cloud.google.com/sdk/docs/install).
-
-## Installation
+**Stop sharing `.env` files over Slack.** Store them securely in Google Cloud Storage with version history and team access control.
 
 ```bash
-npm install -g envpull
+npm install -g @supercorks/envpull
 ```
 
-or run directly with npx:
+---
+
+## 30-Second Quick Start
 
 ```bash
-npx envpull <command>
-```
+# 1. Login to Google Cloud (one-time)
+gcloud auth application-default login
 
-## Quick Start
-
-### 1. Initialize your project
-
-```bash
+# 2. Initialize in your project
 cd your-project
-envpull init
+envpull init            # Creates .envpull.yaml
+
+# 3. Push your .env
+envpull push            # Uploads to GCS bucket
+
+# 4. Pull on another machine (or share with teammate)
+envpull pull            # Downloads .env from GCS
 ```
 
-This will prompt you for:
-- A source name (alias for the bucket)
-- A GCS bucket name
+That's it. Your `.env` is now synced via GCS.
 
-And create `.envpull.yaml` in your project.
+---
 
-### 2. Push your first env
+## Commands at a Glance
+
+| Command | What it does |
+|---------|--------------|
+| `envpull init` | Set up envpull for your project |
+| `envpull push` | Upload your `.env` to GCS |
+| `envpull pull` | Download `.env` from GCS |
+| `envpull diff` | Compare local vs remote |
+| `envpull list` | Show all available environments |
+| `envpull history` | View version history |
+| `envpull rollback <id>` | Restore a previous version |
+| `envpull sources` | List configured sources |
+| `envpull whoami` | Check your auth & config |
+
+> **Tip:** Run `envpull <command> --help` for detailed options
+
+---
+
+## Common Workflows
+
+### New Team Member Setup
+
+Clone the repo (it includes `.envpull.yaml`), then:
 
 ```bash
-envpull push
-```
-
-### 3. Pull on another machine
-
-```bash
+gcloud auth application-default login
 envpull pull
 ```
 
-## Commands
-
-### Pull
-
-Pull an env file from a remote source:
+### Multiple Environments
 
 ```bash
-# Pull from the default/only source
-envpull pull
+# Push staging env
+envpull push --env staging --file .env.staging
 
-# Pull from a specific source
-envpull pull simon
-
-# Pull specific environment
-envpull pull simon --env develop
-
-# Pull to a specific file
-envpull pull simon --env prod --file .env.prod
+# Pull prod env
+envpull pull --env prod --file .env.prod
 ```
 
-### Push
-
-Push a local env file to a remote source:
+### Compare Before Pulling
 
 ```bash
-# Push to the default/only source
-envpull push
-
-# Push to specific source
-envpull push simon
-
-# Push as specific environment
-envpull push simon --env develop
-
-# Push from specific file
-envpull push simon --env develop --file .env.dev
+envpull diff                  # See what's different (values masked)
+envpull diff --show-values    # See actual values
 ```
 
-### Initialize
-
-Set up envpull for a new project:
+### Oops, Need to Rollback
 
 ```bash
-envpull init
+envpull history               # Find the generation ID
+envpull rollback 1737999123456789
+envpull pull                  # Get the restored version
 ```
 
-### History
-
-Show version history for an environment:
-
-```bash
-# Show history for default env
-envpull history
-
-# Show history for specific source/env
-envpull history simon --env develop
-```
-
-### Rollback
-
-Rollback to a previous version using the GCS generation ID (shown in `history` output):
-
-```bash
-# Rollback default env
-envpull rollback <generation>
-
-# Rollback specific source/env
-envpull rollback <generation> simon --env develop
-```
-
-After rolling back, run `envpull pull` to update your local file.
-
-### Who Am I
-
-Check your current authentication and configuration:
-
-```bash
-envpull whoami
-```
-
-Shows your Google account, GCP project, and envpull configuration.
-
-### List Environments
-
-List all environments available for a project:
-
-```bash
-# List all envs
-envpull list
-
-# List from specific source
-envpull list team
-```
-
-### Diff
-
-Compare your local `.env` with the remote version:
-
-```bash
-# Basic diff (values masked)
-envpull diff
-
-# Show actual values
-envpull diff --show-values
-
-# Compare specific env
-envpull diff --env prod --file .env.prod
-```
-
-### Sources
-
-List all configured sources:
-
-```bash
-envpull sources
-```
-
-### Version
-
-```bash
-envpull --version
-```
+---
 
 ## Configuration
 
-### .envpull.yaml
+### `.envpull.yaml`
 
-This file defines your sources. Commit it to your repo so team members can pull envs.
+Created by `envpull init`. Commit this to your repo.
 
 ```yaml
-# Optional: specify GCP project (defaults to gcloud config)
-project: my-gcp-project
+project: my-gcp-project       # Optional: GCP project ID
 
 sources:
-  simon:
-    bucket: gs://simon-envs
+  default:
+    bucket: my-team-envs      # GCS bucket name
 
-  team:
-    bucket: gs://team-shared-envs
+  # Add more sources for different buckets
+  personal:
+    bucket: simon-dev-envs
+```
+
+### Using Multiple Sources
+
+```bash
+envpull pull personal         # Pull from 'personal' source
+envpull push default          # Push to 'default' source
 ```
 
 ### GCS Bucket Structure
 
-envpull organizes files by project name (auto-detected from git remote):
+Files are organized by project (auto-detected from git remote):
 
 ```
 gs://your-bucket/
-└── your-project-name/
-    ├── default.env
-    ├── develop.env
+└── org/repo-name/            # From git remote
+    ├── default.env           # envpull push/pull
+    ├── develop.env           # envpull push --env develop
+    ├── staging.env
     └── prod.env
 ```
 
-## Security
+---
 
-### GCS IAM Permissions
+## Requirements
 
-Users need the following permissions on the GCS bucket:
-
-- `storage.objects.create` - to push
-- `storage.objects.get` - to pull/show
-- `storage.objects.list` - to list environments
-- `storage.objects.delete` - to overwrite existing envs
-
-Recommended: Use a dedicated service account or rely on individual user permissions with Google Cloud IAM.
+- **Node.js 18+**
+- **gcloud CLI** — [Install here](https://cloud.google.com/sdk/docs/install)
+- **Git repo with remote** — Project name is derived from the git remote URL
 
 ### Authentication
 
-envpull uses Application Default Credentials (ADC). Authenticate with:
+envpull uses Google Cloud Application Default Credentials:
 
 ```bash
 gcloud auth application-default login
 ```
 
-### Best Practices
+Check your status anytime with `envpull whoami`.
 
-1. **Use separate buckets** for different security levels (e.g., prod secrets vs dev)
-2. **Enable bucket versioning** to track changes
-3. **Set up bucket lifecycle policies** to auto-delete old versions
-4. **Use IAM conditions** to restrict access by project or environment
-5. **Audit access** using GCS access logs
+---
+
+## GCS Bucket Permissions
+
+Users need these IAM permissions on the bucket:
+
+| Permission | Required for |
+|------------|--------------|
+| `storage.objects.get` | pull, diff, history |
+| `storage.objects.list` | list |
+| `storage.objects.create` | push |
+| `storage.objects.delete` | push (overwrite) |
+
+**Quick setup:** Grant `Storage Object Admin` role for full access, or `Storage Object Viewer` for read-only.
+
+---
+
+## Security Best Practices
+
+1. **Enable bucket versioning** — Automatic history & rollback capability
+2. **Use separate buckets** — Keep prod secrets isolated from dev
+3. **Set lifecycle policies** — Auto-delete old versions after N days
+4. **Review IAM regularly** — Remove access for departed team members
+5. **Use IAM conditions** — Restrict access by environment if needed
+
+---
+
+## Troubleshooting
+
+| Error | Solution |
+|-------|----------|
+| `gcloud: command not found` | [Install gcloud CLI](https://cloud.google.com/sdk/docs/install) |
+| `Could not load credentials` | Run `gcloud auth application-default login` |
+| `Permission denied` / `403` | Ask bucket owner for access, or check you're using the right Google account |
+| `Could not detect project name` | Ensure you're in a git repo with a remote: `git remote -v` |
+| `Config not found` | Run `envpull init` or `cd` to the directory with `.envpull.yaml` |
+| `Bucket does not exist` | Say "yes" to create it, or fix the name in `.envpull.yaml` |
+
+---
+
+## CI/CD Usage
+
+Example for GitHub Actions:
+
+```yaml
+- uses: google-github-actions/auth@v2
+  with:
+    credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+- run: npm install -g @supercorks/envpull
+
+- run: envpull pull --env prod --file .env.prod
+```
+
+---
 
 ## Development
 
-### Setup
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Run locally:
-   ```bash
-   node bin/envpull.js <command>
-   ```
-   e.g. `node bin/envpull.js pull`
-
-### Link for local development
-
 ```bash
-npm link
-# Now you can run `envpull` globally pointing to this repo
-envpull --version
+git clone <repo>
+npm install
+node bin/envpull.js <command>   # Run locally
+
+npm link                        # Link globally for testing
+npm test                        # Run tests
 ```
+
+---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+MIT — see [LICENSE](LICENSE)
