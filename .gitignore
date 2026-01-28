@@ -1,5 +1,7 @@
-# Binaries
-bin/
+# Dependencies
+node_modules/
+
+# Binaries (Go artifacts, not used)
 envpull
 *.exe
 
@@ -24,7 +26,4 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-!.envpull.yml.example
-
-# Go
-vendor/
+!.envpull.yaml.example

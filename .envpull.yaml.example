@@ -1,0 +1,10 @@
+# envpull configuration
+# Add sources that team members can pull from
+
+sources:
+  simon:
+    bucket: gs://your-bucket-name
+
+  # Add more sources as needed
+  # team:
+  #   bucket: gs://team-shared-envs

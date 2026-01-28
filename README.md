@@ -7,30 +7,28 @@ A CLI tool for sharing and syncing `.env` files via Google Cloud Storage (GCS) b
 envpull makes it easy to share environment variables across team members and environments. Instead of copying `.env` files through insecure channels (Slack, email), store them securely in GCS buckets with proper access controls.
 
 **Key features:**
-- Config-based: Each repo has `.envpull.yml` defining named sources
+- Config-based: Each repo has `.envpull.yaml` defining named sources
 - Multiple sources: Different team members can have their own buckets
 - Environment support: Manage `default`, `develop`, `prod`, etc.
-- Smart caching: Remembers your last used source and environment
 - Git-aware: Auto-detects project name from git remote
+- Version history: Rollback to previous versions of your environment files
+
+## Prerequisites
+
+- **Node.js**: Version 18 or higher.
+- **gcloud CLI**: Required for Authentication (ADC). [Install gcloud](https://cloud.google.com/sdk/docs/install).
 
 ## Installation
 
-### Using Go
-
 ```bash
-go install github.com/supercorks/envpull/cmd/envpull@latest
+npm install -g envpull
 ```
 
-### Using Homebrew (macOS)
+or run directly with npx:
 
 ```bash
-brew tap supercorks/tap
-brew install envpull
+npx envpull <command>
 ```
-
-### Binary Download
-
-Download the latest release from the [releases page](https://github.com/supercorks/envpull/releases).
 
 ## Quick Start
 
@@ -41,45 +39,42 @@ cd your-project
 envpull init
 ```
 
-This will:
-- Detect your project name from git remote
-- Prompt for source configuration
-- Create `.envpull.yml`
-- Add `.envpull.cache` to `.gitignore`
+This will prompt you for:
+- A source name (alias for the bucket)
+- A GCS bucket name
+
+And create `.envpull.yaml` in your project.
 
 ### 2. Push your first env
 
 ```bash
-envpull push simon
+envpull push
 ```
 
 ### 3. Pull on another machine
 
 ```bash
-envpull simon
+envpull pull
 ```
 
 ## Commands
 
-### Pull (Default)
+### Pull
 
 Pull an env file from a remote source:
 
 ```bash
-# Pull default env from 'simon' source
-envpull simon
+# Pull from the default/only source
+envpull pull
 
-# Uses cached source if available
-envpull
+# Pull from a specific source
+envpull pull simon
 
 # Pull specific environment
-envpull simon --env develop
+envpull pull simon --env develop
 
 # Pull to a specific file
-envpull simon --env prod --file .env.prod
-
-# Force overwrite without confirmation
-envpull simon --force
+envpull pull simon --env prod --file .env.prod
 ```
 
 ### Push
@@ -87,7 +82,7 @@ envpull simon --force
 Push a local env file to a remote source:
 
 ```bash
-# Push to cached source
+# Push to the default/only source
 envpull push
 
 # Push to specific source
@@ -100,33 +95,6 @@ envpull push simon --env develop
 envpull push simon --env develop --file .env.dev
 ```
 
-### List
-
-List available environments:
-
-```bash
-# List from cached source
-envpull ls
-
-# List from specific source
-envpull ls simon
-```
-
-### Sources
-
-Manage configured sources:
-
-```bash
-# List all sources
-envpull sources
-
-# Add a new source
-envpull source add team --bucket gs://team-envs --project my-gcp-project
-
-# Remove a source
-envpull source remove team
-```
-
 ### Initialize
 
 Set up envpull for a new project:
@@ -135,53 +103,51 @@ Set up envpull for a new project:
 envpull init
 ```
 
-### Authentication
+### History
+
+Show version history for an environment:
 
 ```bash
-# Login with Google Cloud
-envpull login
+# Show history for default env
+envpull history
 
-# Show current identity
-envpull whoami
+# Show history for specific source/env
+envpull history simon --env develop
 ```
 
-### Utilities
+### Rollback
+
+Rollback to a previous version using the GCS generation ID (shown in `history` output):
 
 ```bash
-# Compare local vs remote
-envpull diff simon --env develop
+# Rollback default env
+envpull rollback <generation>
 
-# Show remote contents
-envpull show simon --env prod
+# Rollback specific source/env
+envpull rollback <generation> simon --env develop
+```
 
-# Print version
-envpull version
+After rolling back, run `envpull pull` to update your local file.
+
+### Version
+
+```bash
+envpull --version
 ```
 
 ## Configuration
 
-### .envpull.yml
+### .envpull.yaml
 
 This file defines your sources. Commit it to your repo so team members can pull envs.
 
 ```yaml
 sources:
-  - name: simon
+  simon:
     bucket: gs://simon-envs
-    project: simons-gcp-project
-    
-  - name: team
+
+  team:
     bucket: gs://team-shared-envs
-    project: team-gcp-project
-```
-
-### .envpull.cache
-
-This file stores your last used source and environment. It's auto-generated and should be gitignored.
-
-```yaml
-last_source: simon
-last_env: develop
 ```
 
 ### GCS Bucket Structure
@@ -211,7 +177,7 @@ Recommended: Use a dedicated service account or rely on individual user permissi
 
 ### Authentication
 
-envpull uses Application Default Credentials (ADC). Run `envpull login` to authenticate, which executes:
+envpull uses Application Default Credentials (ADC). Authenticate with:
 
 ```bash
 gcloud auth application-default login
@@ -227,22 +193,24 @@ gcloud auth application-default login
 
 ## Development
 
-### Building
+### Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Run locally:
+   ```bash
+   node bin/envpull.js <command>
+   ```
+   e.g. `node bin/envpull.js pull`
+
+### Link for local development
 
 ```bash
-make build
-```
-
-### Testing
-
-```bash
-make test
-```
-
-### Installing locally
-
-```bash
-make install
+npm link
+# Now you can run `envpull` globally pointing to this repo
+envpull --version
 ```
 
 ## License
