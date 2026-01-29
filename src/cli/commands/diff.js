@@ -198,6 +198,9 @@ export function register(program) {
 
       } catch (error) {
         spinner.fail(error.message);
+        if (error.detail) {
+          console.log(ui.dim(`   ${error.detail}`));
+        }
         if (error.hint) {
           console.log(ui.hint(error.hint));
         }

@@ -41,6 +41,7 @@ That's it. Your `.env` is now synced via GCS.
 | `envpull history` | View version history |
 | `envpull rollback <id>` | Restore a previous version |
 | `envpull grant <email>` | Grant bucket access to a teammate |
+| `envpull grants` | View who has bucket access |
 | `envpull sources` | List configured sources |
 | `envpull whoami` | Check your auth & config |
 
@@ -55,9 +56,17 @@ That's it. Your `.env` is now synced via GCS.
 ```bash
 envpull grant teammate@company.com              # Read-only access (default)
 envpull grant teammate@company.com --read-write # Full read/write access
+envpull grant teammate@company.com -s personal  # Grant on specific source
 ```
 
 They'll be able to `envpull pull` immediately after.
+
+### See Who Has Access
+
+```bash
+envpull grants                # View bucket access for default source
+envpull grants personal       # View access for specific source
+```
 
 ### New Team Member Setup
 

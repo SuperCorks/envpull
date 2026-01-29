@@ -15,6 +15,7 @@ import * as listCmd from './commands/list.js';
 import * as sourcesCmd from './commands/sources.js';
 import * as diffCmd from './commands/diff.js';
 import * as grantCmd from './commands/grant.js';
+import * as grantsCmd from './commands/grants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +81,7 @@ ${chalk.bold('MORE')}
   
   // Access management
   grantCmd.register(program);
+  grantsCmd.register(program);
   
   // Info
   whoamiCmd.register(program);

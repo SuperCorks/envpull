@@ -45,11 +45,10 @@ export function register(program) {
   program
     .command('grant <email>')
     .description('Grant bucket access to a team member by email')
-    .argument('<email>', 'Email address of the user to grant access')
-    .argument('[source]', 'Source name from config')
+    .option('-s, --source <name>', 'Source name from config')
     .option('--read-write', 'Grant read-write access (admin) instead of read-only')
     .option('-y, --yes', 'Skip confirmation prompt')
-    .action(async (email, sourceName, options) => {
+    .action(async (email, options) => {
       const spinner = ui.spinner('Loading config...').start();
 
       try {
@@ -69,7 +68,7 @@ export function register(program) {
         }
 
         const { config } = result;
-        const source = resolveSource(config, sourceName);
+        const source = resolveSource(config, options.source);
         const client = new GCSClient(config.project);
         const bucketName = client.normalizeBucketName(source.bucket);
         const role = options.readWrite ? 'roles/storage.objectAdmin' : 'roles/storage.objectViewer';
@@ -111,6 +110,9 @@ export function register(program) {
           return;
         }
         spinner.fail(error.message);
+        if (error.detail) {
+          console.log(ui.dim(`   ${error.detail}`));
+        }
         if (error.hint) {
           console.log(ui.hint(error.hint));
         }

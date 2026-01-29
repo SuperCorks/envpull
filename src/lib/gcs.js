@@ -10,6 +10,10 @@ export class GCSError extends Error {
     this.name = 'GCSError';
     this.hint = hint;
     this.originalError = originalError;
+    // Always include the original error message for debugging
+    if (originalError && originalError.message && originalError.message !== message) {
+      this.detail = originalError.message;
+    }
   }
 }
 
@@ -146,6 +150,7 @@ export class GCSClient {
     } catch (err) {
       // Provide specific messages for common create failures
       const msg = err.message || '';
+      const msgLower = msg.toLowerCase();
       if (err.code === 409 || msg.includes('already exists')) {
         throw new GCSError(
           `Bucket '${bucketName}' already exists`,
@@ -157,6 +162,22 @@ export class GCSClient {
         throw new GCSError(
           `Invalid bucket name '${bucketName}'`,
           'Bucket names must be 3-63 chars, lowercase, numbers, hyphens only',
+          err
+        );
+      }
+      // Billing issues
+      if (msgLower.includes('billing') || msgLower.includes('disabled in state')) {
+        throw new GCSError(
+          'Billing is not enabled for this project',
+          'Enable billing at https://console.cloud.google.com/billing or use a different project',
+          err
+        );
+      }
+      // Permission denied for bucket creation requires project-level permissions
+      if (err.code === 403 || msgLower.includes('access denied') || msgLower.includes('permission denied')) {
+        throw new GCSError(
+          'Permission denied - cannot create bucket',
+          'You need Storage Admin role on the GCP project to create buckets, or use an existing bucket',
           err
         );
       }
@@ -361,6 +382,23 @@ export class GCSClient {
       
       // Set the updated policy
       await bucket.iam.setPolicy(policy);
+    } catch (err) {
+      throw wrapError(err, bucketName);
+    }
+  }
+
+  /**
+   * Gets the IAM policy for a bucket
+   * @param {string} bucketName 
+   * @returns {Promise<Array<{role: string, members: string[]}>>}
+   */
+  async getIamPolicy(bucketName) {
+    bucketName = this.normalizeBucketName(bucketName);
+    const bucket = this.storage.bucket(bucketName);
+    
+    try {
+      const [policy] = await bucket.iam.getPolicy({ requestedPolicyVersion: 3 });
+      return policy.bindings || [];
     } catch (err) {
       throw wrapError(err, bucketName);
     }

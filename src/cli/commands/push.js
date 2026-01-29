@@ -11,6 +11,9 @@ import path from 'path';
  */
 function handleError(spinner, error) {
   spinner.fail(error.message);
+  if (error.detail) {
+    console.log(ui.dim(`   ${error.detail}`));
+  }
   if (error.hint) {
     console.log(ui.hint(error.hint));
   }
