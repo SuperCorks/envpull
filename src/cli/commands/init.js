@@ -79,7 +79,7 @@ export function register(program) {
             }
         }
 
-        await saveConfig(configPath, config);
+        await saveConfig(configPath, config, true);
         
         console.log(ui.success(`\n✅ Created ${ui.path('.envpull.yaml')}\n`));
         console.log(ui.dim('Next steps:'));

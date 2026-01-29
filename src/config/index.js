@@ -33,8 +33,19 @@ export async function loadConfig() {
  * Saves the config to the specified path.
  * @param {string} filepath 
  * @param {Object} config 
+ * @param {boolean} includeHeader - Whether to include explanatory header comment
  */
-export async function saveConfig(filepath, config) {
-  const content = yaml.dump(config);
+export async function saveConfig(filepath, config, includeHeader = false) {
+  let content = yaml.dump(config);
+  
+  if (includeHeader) {
+    const header = `# envpull config - securely share .env files via Google Cloud Storage
+# Install: npm install -g @supercorks/envpull
+# Docs: https://github.com/SuperCorks/envpull
+
+`;
+    content = header + content;
+  }
+  
   await fs.writeFile(filepath, content, 'utf8');
 }
