@@ -22,11 +22,14 @@ function handleError(spinner, error) {
 
 export function register(program) {
   program
-    .command('push [source]')
+    .command('push [file]')
     .description('Upload local .env files to GCS')
-    .option('-e, --env <name>', 'Environment name', 'default')
-    .option('-f, --file <path>', 'Local file path', '.env')
-    .action(async (sourceName, options) => {
+    .option('-s, --source <name>', 'Source name from config')
+    .option('-b, --branch <name>', 'Branch/environment name', 'default')
+    .action(async (file, options) => {
+      const filePath = file || '.env';
+      const filename = path.basename(filePath);
+      const branch = options.branch;
       const spinner = ui.spinner('Preparing push...').start();
       
       try {
@@ -40,6 +43,7 @@ export function register(program) {
         const { config } = result;
 
         // 2. Resolve source
+        let sourceName = options.source;
         if (!sourceName) {
             const keys = Object.keys(config.sources || {});
             if (keys.length === 0) {
@@ -82,14 +86,14 @@ export function register(program) {
         }
 
         // 4. Read local file
-        spinner.text = `Reading ${options.file}...`;
-        const filePath = path.resolve(process.cwd(), options.file);
+        spinner.text = `Reading ${filePath}...`;
+        const fullPath = path.resolve(process.cwd(), filePath);
         let content;
         try {
-            content = await fs.readFile(filePath, 'utf8');
+            content = await fs.readFile(fullPath, 'utf8');
         } catch (err) {
-            spinner.fail(`File not found: ${ui.path(options.file)}`);
-            console.log(ui.hint(`Create the file or use ${ui.cmd('--file <path>')} to specify a different one`));
+            spinner.fail(`File not found: ${ui.path(filePath)}`);
+            console.log(ui.hint(`Create the file or specify a different one`));
             return;
         }
 
@@ -148,9 +152,9 @@ export function register(program) {
           }
 
           // Attempt upload
-          spinner.text = `Uploading to ${currentBucket}/${project}/${options.env}.env...`;
+          spinner.text = `Uploading to ${currentBucket}/${project}/${branch}/${filename}...`;
           try {
-            await client.upload(currentBucket, project, options.env, content);
+            await client.upload(currentBucket, project, branch, filename, content);
             uploaded = true;
           } catch (uploadErr) {
             // Check if it's a bucket-not-found error during upload
@@ -178,7 +182,7 @@ export function register(program) {
           console.log(ui.info(`📝 Updated config with bucket '${currentBucket}'`));
         }
 
-        spinner.succeed(ui.success(`Pushed to ${project}/${options.env}`));
+        spinner.succeed(ui.success(`Pushed ${filePath} to ${project}/${branch}/${filename}`));
         console.log(ui.dim(`   ${ui.kv('Source', sourceName)} ${ui.kv('Bucket', currentBucket)}`));
 
       } catch (error) {

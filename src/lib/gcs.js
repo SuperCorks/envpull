@@ -186,25 +186,27 @@ export class GCSClient {
   }
 
   /**
-   * Constructs object path: project/envName.env
+   * Constructs object path: project/branch/filename
    * @param {string} project 
-   * @param {string} envName 
+   * @param {string} branch 
+   * @param {string} filename 
    * @returns {string}
    */
-  getObjectPath(project, envName) {
-    return `${project}/${envName}.env`;
+  getObjectPath(project, branch, filename) {
+    return `${project}/${branch}/${filename}`;
   }
 
   /**
    * Uploads content to GCS
    * @param {string} bucketName 
    * @param {string} project 
-   * @param {string} envName 
+   * @param {string} branch 
+   * @param {string} filename 
    * @param {string} content 
    */
-  async upload(bucketName, project, envName, content) {
+  async upload(bucketName, project, branch, filename, content) {
     bucketName = this.normalizeBucketName(bucketName);
-    const objectPath = this.getObjectPath(project, envName);
+    const objectPath = this.getObjectPath(project, branch, filename);
     
     const bucket = this.storage.bucket(bucketName);
     const file = bucket.file(objectPath);
@@ -225,12 +227,13 @@ export class GCSClient {
    * Downloads content from GCS
    * @param {string} bucketName 
    * @param {string} project 
-   * @param {string} envName 
+   * @param {string} branch 
+   * @param {string} filename 
    * @returns {Promise<string>}
    */
-  async download(bucketName, project, envName) {
+  async download(bucketName, project, branch, filename) {
     bucketName = this.normalizeBucketName(bucketName);
-    const objectPath = this.getObjectPath(project, envName);
+    const objectPath = this.getObjectPath(project, branch, filename);
     
     const bucket = this.storage.bucket(bucketName);
     const file = bucket.file(objectPath);
@@ -241,8 +244,8 @@ export class GCSClient {
     } catch (err) {
       if (err.code === 404) {
         throw new GCSError(
-          `Environment '${envName}' not found`,
-          `No file at ${bucketName}/${project}/${envName}.env - has it been pushed yet?`,
+          `File '${filename}' not found in branch '${branch}'`,
+          `No file at ${bucketName}/${objectPath} - has it been pushed yet?`,
           err
         );
       }
@@ -251,15 +254,16 @@ export class GCSClient {
   }
 
   /**
-   * Lists versions of an env file
+   * Lists versions of a file
    * @param {string} bucketName 
    * @param {string} project 
-   * @param {string} envName 
+   * @param {string} branch 
+   * @param {string} filename 
    * @returns {Promise<Array<{generation: string, updated: string, size: string}>>}
    */
-  async listVersions(bucketName, project, envName) {
+  async listVersions(bucketName, project, branch, filename) {
     bucketName = this.normalizeBucketName(bucketName);
-    const objectPath = this.getObjectPath(project, envName);
+    const objectPath = this.getObjectPath(project, branch, filename);
     
     const bucket = this.storage.bucket(bucketName);
     
@@ -287,12 +291,12 @@ export class GCSClient {
   }
 
   /**
-   * Lists all environments for a project
+   * Lists all branches for a project
    * @param {string} bucketName 
    * @param {string} project 
-   * @returns {Promise<Array<{name: string, updated: string, size: string}>>}
+   * @returns {Promise<Array<{name: string, fileCount: number, updated: string}>>}
    */
-  async listEnvs(bucketName, project) {
+  async listBranches(bucketName, project) {
     bucketName = this.normalizeBucketName(bucketName);
     const prefix = `${project}/`;
     
@@ -303,17 +307,30 @@ export class GCSClient {
         prefix: prefix
       });
 
-      // Filter for .env files only and extract env name
-      return files
-        .filter(f => f.name.endsWith('.env') && f.name.startsWith(prefix))
-        .map(f => {
-          const name = f.name.slice(prefix.length, -4); // Remove prefix and .env suffix
-          return {
-            name,
-            updated: f.metadata.updated,
-            size: f.metadata.size
-          };
-        })
+      // Group files by branch (folder)
+      const branches = new Map();
+      for (const f of files) {
+        const relativePath = f.name.slice(prefix.length);
+        const slashIndex = relativePath.indexOf('/');
+        if (slashIndex === -1) continue; // Skip files directly under project/
+        
+        const branchName = relativePath.slice(0, slashIndex);
+        if (!branches.has(branchName)) {
+          branches.set(branchName, { files: [], updated: f.metadata.updated });
+        }
+        const branch = branches.get(branchName);
+        branch.files.push(f);
+        if (new Date(f.metadata.updated) > new Date(branch.updated)) {
+          branch.updated = f.metadata.updated;
+        }
+      }
+
+      return Array.from(branches.entries())
+        .map(([name, data]) => ({
+          name,
+          fileCount: data.files.length,
+          updated: data.updated
+        }))
         .sort((a, b) => a.name.localeCompare(b.name));
     } catch (err) {
       throw wrapError(err, bucketName);
@@ -321,14 +338,15 @@ export class GCSClient {
   }
 
   /**
-   * Lists all files for a project (excluding .env files)
+   * Lists all files in a branch
    * @param {string} bucketName 
    * @param {string} project 
+   * @param {string} branch 
    * @returns {Promise<Array<{name: string, updated: string, size: string}>>}
    */
-  async listFiles(bucketName, project) {
+  async listFiles(bucketName, project, branch) {
     bucketName = this.normalizeBucketName(bucketName);
-    const prefix = `${project}/`;
+    const prefix = `${project}/${branch}/`;
     
     const bucket = this.storage.bucket(bucketName);
     
@@ -337,11 +355,10 @@ export class GCSClient {
         prefix: prefix
       });
 
-      // Filter for non-.env files and extract file name
       return files
-        .filter(f => !f.name.endsWith('.env') && f.name.startsWith(prefix))
+        .filter(f => f.name.startsWith(prefix) && f.name.length > prefix.length)
         .map(f => {
-          const name = f.name.slice(prefix.length); // Remove prefix
+          const name = f.name.slice(prefix.length);
           return {
             name,
             updated: f.metadata.updated,
@@ -358,12 +375,13 @@ export class GCSClient {
    * Rolls back to a specific version
    * @param {string} bucketName 
    * @param {string} project 
-   * @param {string} envName 
+   * @param {string} branch 
+   * @param {string} filename 
    * @param {string} generation 
    */
-  async rollback(bucketName, project, envName, generation) {
+  async rollback(bucketName, project, branch, filename, generation) {
     bucketName = this.normalizeBucketName(bucketName);
-    const objectPath = this.getObjectPath(project, envName);
+    const objectPath = this.getObjectPath(project, branch, filename);
     
     const bucket = this.storage.bucket(bucketName);
     const file = bucket.file(objectPath, { generation });

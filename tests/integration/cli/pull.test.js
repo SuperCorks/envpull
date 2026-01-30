@@ -125,13 +125,13 @@ describe('cli/commands/pull', () => {
     expect(exitSpy).not.toHaveBeenCalled();
     expect(configModule.loadConfig).toHaveBeenCalled();
     expect(gitModule.getProjectName).toHaveBeenCalled();
-    expect(mockDownload).toHaveBeenCalledWith('my-bucket', 'my-org/my-project', 'default');
+    expect(mockDownload).toHaveBeenCalledWith('my-bucket', 'my-org/my-project', 'default', '.env');
     
     const expectedPath = path.resolve(process.cwd(), '.env');
     expect(fs.writeFile).toHaveBeenCalledWith(expectedPath, 'KEY=VALUE', 'utf8');
   });
 
-  it('should allow specifying source and env', async () => {
+  it('should allow specifying source and branch', async () => {
      vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
         config: {
             sources: {
@@ -147,10 +147,10 @@ describe('cli/commands/pull', () => {
         }
     });
 
-    await runCommand(['staging', '-e', 'production', '-f', '.env.prod']);
+    await runCommand(['.env.prod', '-s', 'staging', '-b', 'production']);
     
     expect(exitSpy).not.toHaveBeenCalled();
-    expect(mockDownload).toHaveBeenCalledWith('staging-bucket', 'proj', 'production');
+    expect(mockDownload).toHaveBeenCalledWith('staging-bucket', 'proj', 'production', '.env.prod');
      const expectedPath = path.resolve(process.cwd(), '.env.prod');
      expect(fs.writeFile).toHaveBeenCalledWith(expectedPath, 'ENV=STAGING', 'utf8');
   });

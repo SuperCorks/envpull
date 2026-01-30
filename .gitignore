@@ -27,3 +27,5 @@ Thumbs.db
 .env.*
 !.env.example
 !.envpull.yaml.example
+
+integration-tests-service-account.json

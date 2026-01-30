@@ -68,13 +68,16 @@ function maskValue(value, showValues) {
 
 export function register(program) {
   program
-    .command('diff [source]')
+    .command('diff [file]')
     .description('Show differences between local and remote')
-    .option('-e, --env <name>', 'Environment name', 'default')
-    .option('-f, --file <path>', 'Local file path', '.env')
+    .option('-s, --source <name>', 'Source name from config')
+    .option('-b, --branch <name>', 'Branch/environment name', 'default')
     .option('--show-values', 'Show actual values (not masked)')
-    .action(async (sourceName, options) => {
-      const spinner = ui.spinner('Comparing environments...').start();
+    .action(async (file, options) => {
+      const filePath = file || '.env';
+      const filename = path.basename(filePath);
+      const branch = options.branch;
+      const spinner = ui.spinner('Comparing...').start();
 
       try {
         const result = await loadConfig();
@@ -85,6 +88,7 @@ export function register(program) {
         }
         const { config } = result;
 
+        let sourceName = options.source;
         if (!sourceName) {
           const keys = Object.keys(config.sources || {});
           if (keys.length === 0) {
@@ -116,13 +120,13 @@ export function register(program) {
         }
 
         // Read local file
-        const filePath = path.resolve(process.cwd(), options.file);
+        const fullPath = path.resolve(process.cwd(), filePath);
         let localContent;
         try {
-          localContent = await fs.readFile(filePath, 'utf8');
+          localContent = await fs.readFile(fullPath, 'utf8');
         } catch (err) {
-          spinner.fail(`Local file not found: ${ui.path(options.file)}`);
-          console.log(ui.hint(`Create it or pull with ${ui.cmd('envpull pull')}`));
+          spinner.fail(`Local file not found: ${ui.path(filePath)}`);
+          console.log(ui.hint(`Create it or pull with ${ui.cmd(`envpull pull ${filePath} -b ${branch}`)}`));
           return;
         }
 
@@ -130,11 +134,11 @@ export function register(program) {
         const client = new GCSClient(source.project);
         let remoteContent;
         try {
-          remoteContent = await client.download(source.bucket, project, options.env);
+          remoteContent = await client.download(source.bucket, project, branch, filename);
         } catch (err) {
           if (err.message?.includes('not found')) {
-            spinner.fail(`Remote environment '${options.env}' not found`);
-            console.log(ui.hint(`Push it first with ${ui.cmd('envpull push')}`));
+            spinner.fail(`Remote file '${branch}/${filename}' not found`);
+            console.log(ui.hint(`Push it first with ${ui.cmd(`envpull push ${filePath} -b ${branch}`)}`));
             return;
           }
           throw err;
@@ -147,8 +151,8 @@ export function register(program) {
         const remoteEnv = parseEnv(remoteContent);
         const diff = diffEnvs(localEnv, remoteEnv);
 
-        console.log(ui.bold(`\n🔍 Diff: ${options.file} ↔ ${options.env}\n`));
-        console.log(ui.dim(`   Local: ${options.file}  •  Remote: ${source.bucket}/${project}/${options.env}.env\n`));
+        console.log(ui.bold(`\n🔍 Diff: ${filePath} ↔ ${branch}/${filename}\n`));
+        console.log(ui.dim(`   Local: ${filePath}  •  Remote: ${source.bucket}/${project}/${branch}/${filename}\n`));
 
         const hasChanges = diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
 

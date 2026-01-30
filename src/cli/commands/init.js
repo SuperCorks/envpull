@@ -20,6 +20,13 @@ function getCurrentProject() {
   }
 }
 
+/**
+ * Normalize bucket name by removing gs:// prefix and trailing slash
+ */
+function normalizeBucketName(bucket) {
+  return bucket.replace(/^gs:\/\//, '').replace(/\/$/, '');
+}
+
 export function register(program) {
   program
     .command('init')
@@ -33,16 +40,20 @@ export function register(program) {
           default: 'default' 
         });
 
-        const bucket = await input({ 
+        const bucketInput = await input({ 
           message: 'GCS Bucket name:',
           validate: (value) => {
             if (!value) return 'Bucket name is required';
-            if (!/^[a-z0-9][a-z0-9-_.]{1,61}[a-z0-9]$/.test(value.replace(/^gs:\/\//, ''))) {
+            const normalized = normalizeBucketName(value);
+            if (!/^[a-z0-9][a-z0-9-_.]{1,61}[a-z0-9]$/.test(normalized)) {
               return 'Invalid bucket name (3-63 chars, lowercase, numbers, hyphens, dots)';
             }
             return true;
           }
         });
+
+        // Normalize the bucket name for storage
+        const bucket = normalizeBucketName(bucketInput);
 
         // Get current project as default
         const currentProject = getCurrentProject();

@@ -21,11 +21,14 @@ function handleError(spinner, error) {
 
 export function register(program) {
   program
-    .command('pull [source]')
+    .command('pull [file]')
     .description('Download .env files from GCS')
-    .option('-e, --env <name>', 'Environment name', 'default')
-    .option('-f, --file <path>', 'Local file path', '.env')
-    .action(async (sourceName, options) => {
+    .option('-s, --source <name>', 'Source name from config')
+    .option('-b, --branch <name>', 'Branch/environment name', 'default')
+    .action(async (file, options) => {
+      const filePath = file || '.env';
+      const filename = path.basename(filePath);
+      const branch = options.branch;
       const spinner = ui.spinner('Preparing pull...').start();
       
       try {
@@ -39,6 +42,7 @@ export function register(program) {
         const { config } = result;
 
         // 2. Resolve source
+        let sourceName = options.source;
         if (!sourceName) {
             const keys = Object.keys(config.sources || {});
             if (keys.length === 0) {
@@ -81,21 +85,21 @@ export function register(program) {
         }
 
         // 4. Download
-        spinner.text = `Downloading ${options.env}...`;
+        spinner.text = `Downloading ${branch}/${filename}...`;
         const client = new GCSClient(source.project);
         let content;
         try {
-          content = await client.download(source.bucket, project, options.env);
+          content = await client.download(source.bucket, project, branch, filename);
         } catch (err) {
           handleError(spinner, err);
         }
 
         // 5. Write local file
-        spinner.text = `Writing to ${options.file}...`;
-        const filePath = path.resolve(process.cwd(), options.file);
-        await fs.writeFile(filePath, content, 'utf8');
+        spinner.text = `Writing to ${filePath}...`;
+        const fullPath = path.resolve(process.cwd(), filePath);
+        await fs.writeFile(fullPath, content, 'utf8');
 
-        spinner.succeed(ui.success(`Pulled ${options.env} to ${ui.path(options.file)}`));
+        spinner.succeed(ui.success(`Pulled ${branch}/${filename} to ${ui.path(filePath)}`));
         console.log(ui.dim(`   ${ui.kv('Source', sourceName)} ${ui.kv('Project', project)}`));
 
       } catch (error) {

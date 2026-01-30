@@ -47,10 +47,13 @@ function formatDate(date) {
 
 export function register(program) {
   program
-    .command('history [source]')
-    .description('List past versions of .env')
-    .option('-e, --env <name>', 'Environment name', 'default')
-    .action(async (sourceName, options) => {
+    .command('history [file]')
+    .description('List past versions of a file')
+    .option('-s, --source <name>', 'Source name from config')
+    .option('-b, --branch <name>', 'Branch/environment name', 'default')
+    .action(async (file, options) => {
+      const filename = file || '.env';
+      const branch = options.branch;
       const spinner = ui.spinner('Fetching history...').start();
       
       try {
@@ -62,6 +65,7 @@ export function register(program) {
         }
         const { config } = result;
 
+        let sourceName = options.source;
         if (!sourceName) {
             const keys = Object.keys(config.sources || {});
             if (keys.length === 0) {
@@ -77,7 +81,7 @@ export function register(program) {
                 spinner.fail('Multiple sources found, please specify one');
                 console.log('\nAvailable sources:');
                 console.log(ui.list(keys));
-                console.log(ui.hint(`Usage: ${ui.cmd(`envpull history <source>`)}`));
+                console.log(ui.hint(`Usage: ${ui.cmd(`envpull history -s <source>`)}`));
                 return;
             }
         }
@@ -103,7 +107,7 @@ export function register(program) {
         const client = new GCSClient(source.project);
         let versions;
         try {
-          versions = await client.listVersions(source.bucket, project, options.env);
+          versions = await client.listVersions(source.bucket, project, branch, filename);
         } catch (err) {
           handleError(spinner, err);
         }
@@ -111,12 +115,12 @@ export function register(program) {
         spinner.stop();
 
         if (versions.length === 0) {
-            console.log(ui.warn(`\n📭 No versions found for '${options.env}'`));
+            console.log(ui.warn(`\n📭 No versions found for '${branch}/${filename}'`));
             console.log(ui.hint(`Push one first with ${ui.cmd('envpull push')}`));
             return;
         }
 
-        console.log(ui.bold(`\n📜 ${project}/${options.env}`));
+        console.log(ui.bold(`\n📜 ${project}/${branch}/${filename}`));
         console.log(ui.dim(`   Source: ${sourceName}  •  ${versions.length} version${versions.length > 1 ? 's' : ''}\n`));
         
         // Table header

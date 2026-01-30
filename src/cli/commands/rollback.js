@@ -20,11 +20,14 @@ function handleError(spinner, error) {
 
 export function register(program) {
   program
-    .command('rollback <generation> [source]')
-    .description('Restore a previous .env version')
-    .option('-e, --env <name>', 'Environment name', 'default')
+    .command('rollback <generation> [file]')
+    .description('Restore a previous file version')
+    .option('-s, --source <name>', 'Source name from config')
+    .option('-b, --branch <name>', 'Branch/environment name', 'default')
     .option('-y, --yes', 'Skip confirmation prompt')
-    .action(async (generation, sourceName, options) => {
+    .action(async (generation, file, options) => {
+      const filename = file || '.env';
+      const branch = options.branch;
       const spinner = ui.spinner('Preparing rollback...').start();
       
       try {
@@ -36,6 +39,7 @@ export function register(program) {
         }
         const { config } = result;
 
+        let sourceName = options.source;
         if (!sourceName) {
             const keys = Object.keys(config.sources || {});
             if (keys.length === 0) {
@@ -51,7 +55,7 @@ export function register(program) {
                 spinner.fail('Multiple sources found, please specify one');
                 console.log('\nAvailable sources:');
                 console.log(ui.list(keys));
-                console.log(ui.hint(`Usage: ${ui.cmd(`envpull rollback <generation> <source>`)}`));
+                console.log(ui.hint(`Usage: ${ui.cmd(`envpull rollback <generation> -s <source>`)}`));
                 return;
             }
         }
@@ -77,7 +81,7 @@ export function register(program) {
         // Confirm rollback
         if (!options.yes) {
           spinner.stop();
-          console.log(ui.warn(`\n⚠️  You are about to rollback '${options.env}' to version ${generation}`));
+          console.log(ui.warn(`\n⚠️  You are about to rollback '${branch}/${filename}' to version ${generation}`));
           const confirmed = await confirm({
             message: 'This will overwrite the current version. Continue?',
             default: false
@@ -91,13 +95,13 @@ export function register(program) {
 
         const client = new GCSClient(source.project);
         try {
-          await client.rollback(source.bucket, project, options.env, generation);
+          await client.rollback(source.bucket, project, branch, filename, generation);
         } catch (err) {
           handleError(spinner, err);
         }
 
-        spinner.succeed(ui.success(`Rolled back '${options.env}' to version ${generation}`));
-        console.log(ui.hint(`Run ${ui.cmd('envpull pull')} to update your local file`));
+        spinner.succeed(ui.success(`Rolled back '${branch}/${filename}' to version ${generation}`));
+        console.log(ui.hint(`Run ${ui.cmd(`envpull pull ${filename} -b ${branch}`)} to update your local file`));
 
       } catch (error) {
         if (error.name === 'ExitPromptError') {

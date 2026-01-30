@@ -21,9 +21,10 @@ export function register(program) {
   program
     .command('list [source]')
     .alias('ls')
-    .description('Show available environments in bucket')
-    .action(async (sourceName) => {
-      const spinner = ui.spinner('Fetching environments...').start();
+    .description('Show available branches and files in bucket')
+    .option('-b, --branch <name>', 'Show files in specific branch')
+    .action(async (sourceName, options) => {
+      const spinner = ui.spinner('Fetching...').start();
 
       try {
         const result = await loadConfig();
@@ -73,46 +74,82 @@ export function register(program) {
         }
 
         const client = new GCSClient(source.project);
-        let envs;
-        let files;
-        try {
-          [envs, files] = await Promise.all([
-            client.listEnvs(source.bucket, project),
-            client.listFiles(source.bucket, project)
-          ]);
-        } catch (err) {
-          handleError(spinner, err);
-        }
 
-        spinner.stop();
+        // If a specific branch is requested, show files in that branch
+        if (options.branch) {
+          let files;
+          try {
+            files = await client.listFiles(source.bucket, project, options.branch);
+          } catch (err) {
+            handleError(spinner, err);
+          }
 
-        if (envs.length === 0 && files.length === 0) {
-          console.log(ui.warn(`\n📭 No environments found for '${project}'`));
-          console.log(ui.hint(`Push one with ${ui.cmd('envpull push --env <name>')}`));
-          return;
-        }
+          spinner.stop();
 
-        console.log(ui.bold(`\n📂 ${project}`));
-        console.log(ui.dim(`   Source: ${sourceName}  •  Bucket: ${source.bucket}\n`));
+          if (files.length === 0) {
+            console.log(ui.warn(`\n📭 No files found in branch '${options.branch}'`));
+            console.log(ui.hint(`Push with ${ui.cmd(`envpull push .env -b ${options.branch}`)}`));
+            return;
+          }
 
-        if (envs.length > 0) {
-          console.log(ui.dim('   Environments:'));
-          envs.forEach(env => {
-            const age = formatAge(env.updated);
-            console.log(`   ${ui.success('•')} ${env.name.padEnd(20)} ${ui.dim(age)}  ${ui.dim(formatBytes(env.size))}`);
-          });
-        }
+          console.log(ui.bold(`\n📂 ${project}/${options.branch}`));
+          console.log(ui.dim(`   Source: ${sourceName}  •  Bucket: ${source.bucket}\n`));
 
-        if (files.length > 0) {
-          if (envs.length > 0) console.log('');
-          console.log(ui.dim('   Files:'));
           files.forEach(file => {
             const age = formatAge(file.updated);
             console.log(`   ${ui.success('•')} ${file.name.padEnd(20)} ${ui.dim(age)}  ${ui.dim(formatBytes(file.size))}`);
           });
+
+          console.log(ui.hint(`\nPull with: ${ui.cmd(`envpull pull <file> -b ${options.branch}`)}`));
+          return;
         }
 
-        console.log(ui.hint(`\nPull with: ${ui.cmd(`envpull pull --env <name>`)}`));
+        // Otherwise, show branches with their files
+        let branches;
+        try {
+          branches = await client.listBranches(source.bucket, project);
+        } catch (err) {
+          handleError(spinner, err);
+        }
+
+        if (branches.length === 0) {
+          spinner.stop();
+          console.log(ui.warn(`\n📭 No branches found for '${project}'`));
+          console.log(ui.hint(`Push with ${ui.cmd('envpull push')}`));
+          return;
+        }
+
+        // Fetch files for each branch
+        const branchFiles = {};
+        for (const branch of branches) {
+          try {
+            branchFiles[branch.name] = await client.listFiles(source.bucket, project, branch.name);
+          } catch (err) {
+            branchFiles[branch.name] = [];
+          }
+        }
+
+        spinner.stop();
+
+        console.log(ui.bold(`\n📂 ${project}`));
+        console.log(ui.dim(`   Source: ${sourceName}  •  Bucket: ${source.bucket}\n`));
+
+        for (const branch of branches) {
+          const files = branchFiles[branch.name];
+          console.log(`   ${ui.bold(branch.name)}/`);
+          
+          if (files.length === 0) {
+            console.log(ui.dim('      (empty)'));
+          } else {
+            files.forEach(file => {
+              const age = formatAge(file.updated);
+              console.log(`      ${ui.success('•')} ${file.name.padEnd(18)} ${ui.dim(age)}  ${ui.dim(formatBytes(file.size))}`);
+            });
+          }
+          console.log('');
+        }
+
+        console.log(ui.hint(`Pull: ${ui.cmd(`envpull pull <file> -b <branch>`)}`));
 
       } catch (error) {
         handleError(spinner, error);
