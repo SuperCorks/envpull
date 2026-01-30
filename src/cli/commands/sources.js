@@ -38,9 +38,7 @@ export function register(program) {
           console.log('');
         });
 
-        if (config.project) {
-          console.log(ui.dim(`   Global project: ${config.project}\n`));
-        }
+        console.log('');
 
       } catch (error) {
         console.error(ui.error(`\n❌ ${error.message}`));

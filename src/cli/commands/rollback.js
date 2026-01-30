@@ -89,7 +89,7 @@ export function register(program) {
           spinner.start('Rolling back...');
         }
 
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         try {
           await client.rollback(source.bucket, project, options.env, generation);
         } catch (err) {

@@ -69,7 +69,7 @@ export function register(program) {
 
         const { config } = result;
         const source = resolveSource(config, options.source);
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         const bucketName = client.normalizeBucketName(source.bucket);
         const role = options.readWrite ? 'roles/storage.objectAdmin' : 'roles/storage.objectViewer';
         const roleLabel = options.readWrite ? 'Storage Object Admin (read/write)' : 'Storage Object Viewer (read-only)';

@@ -189,7 +189,7 @@ if (!sourceName) {
 ```javascript
 import { GCSClient, GCSError } from '../lib/gcs.js';
 
-const client = new GCSClient(config.project);
+const client = new GCSClient(source.project);
 try {
   const content = await client.download(bucket, project, envName);
 } catch (err) {

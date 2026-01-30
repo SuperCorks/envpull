@@ -72,17 +72,21 @@ export function register(program) {
           return;
         }
 
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         let envs;
+        let files;
         try {
-          envs = await client.listEnvs(source.bucket, project);
+          [envs, files] = await Promise.all([
+            client.listEnvs(source.bucket, project),
+            client.listFiles(source.bucket, project)
+          ]);
         } catch (err) {
           handleError(spinner, err);
         }
 
         spinner.stop();
 
-        if (envs.length === 0) {
+        if (envs.length === 0 && files.length === 0) {
           console.log(ui.warn(`\n📭 No environments found for '${project}'`));
           console.log(ui.hint(`Push one with ${ui.cmd('envpull push --env <name>')}`));
           return;
@@ -91,10 +95,22 @@ export function register(program) {
         console.log(ui.bold(`\n📂 ${project}`));
         console.log(ui.dim(`   Source: ${sourceName}  •  Bucket: ${source.bucket}\n`));
 
-        envs.forEach(env => {
-          const age = formatAge(env.updated);
-          console.log(`   ${ui.success('•')} ${env.name.padEnd(20)} ${ui.dim(age)}  ${ui.dim(formatBytes(env.size))}`);
-        });
+        if (envs.length > 0) {
+          console.log(ui.dim('   Environments:'));
+          envs.forEach(env => {
+            const age = formatAge(env.updated);
+            console.log(`   ${ui.success('•')} ${env.name.padEnd(20)} ${ui.dim(age)}  ${ui.dim(formatBytes(env.size))}`);
+          });
+        }
+
+        if (files.length > 0) {
+          if (envs.length > 0) console.log('');
+          console.log(ui.dim('   Files:'));
+          files.forEach(file => {
+            const age = formatAge(file.updated);
+            console.log(`   ${ui.success('•')} ${file.name.padEnd(20)} ${ui.dim(age)}  ${ui.dim(formatBytes(file.size))}`);
+          });
+        }
 
         console.log(ui.hint(`\nPull with: ${ui.cmd(`envpull pull --env <name>`)}`));
 

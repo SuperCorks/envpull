@@ -127,7 +127,7 @@ export function register(program) {
         }
 
         // Download remote
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         let remoteContent;
         try {
           remoteContent = await client.download(source.bucket, project, options.env);

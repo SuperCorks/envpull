@@ -108,10 +108,6 @@ export function register(program) {
           const { config, filepath } = configResult;
           console.log(`  ${ui.kv('Config', filepath)}`);
           
-          if (config.project) {
-            console.log(`  ${ui.kv('GCP Project', config.project)}`);
-          }
-          
           const sources = Object.keys(config.sources || {});
           if (sources.length > 0) {
             console.log(`  ${ui.kv('Sources', sources.join(', '))}`);
@@ -121,6 +117,9 @@ export function register(program) {
             const defaultName = config.sources['default'] ? 'default' : sources[0];
             if (defaultSource?.bucket) {
               console.log(`  ${ui.kv('Default bucket', defaultSource.bucket)} ${ui.dim(`(${defaultName})`)}`);
+            }
+            if (defaultSource?.project) {
+              console.log(`  ${ui.kv('GCP Project', defaultSource.project)} ${ui.dim(`(${defaultName})`)}`);
             }
           }
         } else {

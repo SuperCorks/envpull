@@ -100,7 +100,7 @@ export function register(program) {
             return;
         }
 
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         let versions;
         try {
           versions = await client.listVersions(source.bucket, project, options.env);

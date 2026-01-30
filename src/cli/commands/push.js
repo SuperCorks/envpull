@@ -94,7 +94,7 @@ export function register(program) {
         }
 
         // 5. Upload (with bucket existence check and retry loop)
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         let currentBucket = source.bucket;
         let uploaded = false;
 

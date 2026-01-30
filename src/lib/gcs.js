@@ -321,6 +321,40 @@ export class GCSClient {
   }
 
   /**
+   * Lists all files for a project (excluding .env files)
+   * @param {string} bucketName 
+   * @param {string} project 
+   * @returns {Promise<Array<{name: string, updated: string, size: string}>>}
+   */
+  async listFiles(bucketName, project) {
+    bucketName = this.normalizeBucketName(bucketName);
+    const prefix = `${project}/`;
+    
+    const bucket = this.storage.bucket(bucketName);
+    
+    try {
+      const [files] = await bucket.getFiles({
+        prefix: prefix
+      });
+
+      // Filter for non-.env files and extract file name
+      return files
+        .filter(f => !f.name.endsWith('.env') && f.name.startsWith(prefix))
+        .map(f => {
+          const name = f.name.slice(prefix.length); // Remove prefix
+          return {
+            name,
+            updated: f.metadata.updated,
+            size: f.metadata.size
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch (err) {
+      throw wrapError(err, bucketName);
+    }
+  }
+
+  /**
    * Rolls back to a specific version
    * @param {string} bucketName 
    * @param {string} project 

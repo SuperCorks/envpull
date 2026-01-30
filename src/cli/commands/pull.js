@@ -82,7 +82,7 @@ export function register(program) {
 
         // 4. Download
         spinner.text = `Downloading ${options.env}...`;
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         let content;
         try {
           content = await client.download(source.bucket, project, options.env);

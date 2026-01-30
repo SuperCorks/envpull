@@ -73,7 +73,7 @@ export function register(program) {
 
         const { config } = result;
         const source = resolveSource(config, sourceName);
-        const client = new GCSClient(config.project);
+        const client = new GCSClient(source.project);
         const bucketName = client.normalizeBucketName(source.bucket);
 
         spinner.text = 'Fetching bucket access...';

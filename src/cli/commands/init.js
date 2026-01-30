@@ -55,15 +55,11 @@ export function register(program) {
         const config = {
           sources: {
             [sourceName]: {
-              bucket: bucket
+              bucket: bucket,
+              ...(gcpProject && gcpProject.trim() ? { project: gcpProject.trim() } : {})
             }
           }
         };
-
-        // Only add project if specified
-        if (gcpProject && gcpProject.trim()) {
-          config.project = gcpProject.trim();
-        }
 
         const configPath = path.join(process.cwd(), '.envpull.yaml');
         
